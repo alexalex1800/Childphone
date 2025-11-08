@@ -9,13 +9,9 @@
 # Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
 DEFAULT_JVM_OPTS="-Xmx64m -Xms64m"
 
-Die() {
+die () {
     echo "$@" >&2
     exit 1
-}
-
-die() {
-    Die "$@"
 }
 
 APP_BASE_NAME=`basename "$0"`
@@ -24,110 +20,7 @@ APP_HOME=`dirname "$0"`
 # Resolve APP_HOME
 APP_HOME=`cd "$APP_HOME" && pwd`
 
-WRAPPER_DIR="$APP_HOME/gradle/wrapper"
-CLASSPATH="$WRAPPER_DIR/gradle-wrapper.jar"
-BASE64_STUB="$WRAPPER_DIR/gradle-wrapper.jar.base64"
-PROPERTIES_FILE="$WRAPPER_DIR/gradle-wrapper.properties"
-
-ensure_wrapper_dir() {
-    if [ ! -d "$WRAPPER_DIR" ]; then
-        mkdir -p "$WRAPPER_DIR" || die "ERROR: Unable to create wrapper directory $WRAPPER_DIR"
-    fi
-}
-
-extract_wrapper_version() {
-    if [ ! -f "$PROPERTIES_FILE" ]; then
-        die "ERROR: $PROPERTIES_FILE is missing. Please regenerate the Gradle wrapper."
-    fi
-    distribution_url=`grep '^distributionUrl=' "$PROPERTIES_FILE" | sed 's/^distributionUrl=//'`
-    if [ -z "$distribution_url" ]; then
-        die "ERROR: distributionUrl not found in $PROPERTIES_FILE"
-    fi
-    echo "$distribution_url" | sed -E 's#.*/gradle-([0-9.]+)-.*#\1#'
-}
-
-maybe_encode_stub() {
-    if [ -f "$CLASSPATH" ]; then
-        if command -v base64 >/dev/null 2>&1; then
-            base64 "$CLASSPATH" > "$BASE64_STUB" 2>/dev/null || true
-        elif command -v python3 >/dev/null 2>&1; then
-            python3 - "$CLASSPATH" "$BASE64_STUB" <<'PY' || true
-import base64
-import pathlib
-import sys
-jar_path = pathlib.Path(sys.argv[1])
-stub_path = pathlib.Path(sys.argv[2])
-stub_path.write_bytes(base64.b64encode(jar_path.read_bytes()))
-PY
-        fi
-    fi
-}
-
-restore_from_stub() {
-    if [ ! -f "$BASE64_STUB" ]; then
-        return 1
-    fi
-    ensure_wrapper_dir
-    tmp_jar="$CLASSPATH.part"
-    echo "Gradle wrapper JAR missing. Restoring from base64 stub."
-    if command -v base64 >/dev/null 2>&1; then
-        base64 --decode "$BASE64_STUB" > "$tmp_jar" || die "ERROR: Failed to decode $BASE64_STUB"
-    elif command -v python3 >/dev/null 2>&1; then
-        python3 - "$BASE64_STUB" "$tmp_jar" <<'PY'
-import base64
-import pathlib
-import sys
-stub_path = pathlib.Path(sys.argv[1])
-out_path = pathlib.Path(sys.argv[2])
-out_path.write_bytes(base64.b64decode(stub_path.read_bytes()))
-PY
-    else
-        die "ERROR: Unable to decode Gradle wrapper stub; install 'base64' or 'python3'."
-    fi
-    mv "$tmp_jar" "$CLASSPATH" || die "ERROR: Unable to move decoded wrapper into place."
-    return 0
-}
-
-download_wrapper() {
-    ensure_wrapper_dir
-    version=`extract_wrapper_version`
-    distribution_url=`grep '^distributionUrl=' "$PROPERTIES_FILE" | sed 's/^distributionUrl=//'`
-    tmp_zip="$WRAPPER_DIR/gradle-${version}.zip"
-    tmp_jar="$CLASSPATH.part"
-    echo "Gradle wrapper JAR missing. Downloading distribution $distribution_url"
-    if command -v curl >/dev/null 2>&1; then
-        curl -fL "$distribution_url" -o "$tmp_zip" || die "ERROR: Failed to download Gradle distribution using curl."
-    elif command -v wget >/dev/null 2>&1; then
-        wget "$distribution_url" -O "$tmp_zip" || die "ERROR: Failed to download Gradle distribution using wget."
-    else
-        die "ERROR: Please install curl or wget to download the Gradle distribution."
-    fi
-    if command -v unzip >/dev/null 2>&1; then
-        unzip -p "$tmp_zip" "gradle-${version}/lib/gradle-wrapper-${version}.jar" > "$tmp_jar" || die "ERROR: Unable to extract wrapper from distribution."
-    elif command -v python3 >/dev/null 2>&1; then
-        python3 - "$tmp_zip" "$tmp_jar" <<'PY'
-import pathlib
-import sys
-import zipfile
-zip_path = pathlib.Path(sys.argv[1])
-out_path = pathlib.Path(sys.argv[2])
-version = zip_path.stem.split('-')[-1]
-with zipfile.ZipFile(zip_path, 'r') as zf:
-    member = f"gradle-{version}/lib/gradle-wrapper-{version}.jar"
-    data = zf.read(member)
-    out_path.write_bytes(data)
-PY
-    else
-        die "ERROR: Install 'unzip' or 'python3' to extract the Gradle wrapper."
-    fi
-    rm -f "$tmp_zip"
-    mv "$tmp_jar" "$CLASSPATH" || die "ERROR: Unable to move downloaded wrapper into place."
-    maybe_encode_stub
-}
-
-if [ ! -f "$CLASSPATH" ]; then
-    restore_from_stub || download_wrapper
-fi
+CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 
 # Determine the Java command to use to start the JVM.
 if [ -n "$JAVA_HOME" ] ; then
